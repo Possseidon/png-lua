@@ -20,7 +20,7 @@
 -- CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-local class = require("30log"
+local class = require("30log")
 local deflate = require("deflate")
 local Stream = require("stream")
 
@@ -289,3 +289,5 @@ function pngImage:getPixel(x, y)
     local pixel = self.scanLines[y].pixels[x]
     return pixel
 end
+
+return pngImage
