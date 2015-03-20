@@ -141,6 +141,23 @@ function Pixel:__init(stream, depth, colorType, palette)
     end
 end
 
+local function DEC_HEX(IN)
+    local B,K,OUT,I,D=16,"0123456789ABCDEF","",0
+    while IN>0 do
+        I=I+1
+        IN,D=math.floor(IN/B), (IN%B)+1
+        OUT=string.sub(K,D,D)..OUT
+    end
+    if (OUT == "") then
+        OUT = "0"
+    end
+    return tonumber(OUT, 16)
+end
+
+function Pixel:toHex()
+    return DEC_HEX(self.R)*0x10000 + DEC_HEX(self.G)*0x100 + DEC_HEX(self.B)
+end
+
 function Pixel:format()
     return string.format("R: %d, G: %d, B: %d, A: %d", self.R, self.G, self.B, self.A)
 end
