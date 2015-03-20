@@ -1,5 +1,6 @@
 local class = require("30log")
 local Stream = class()
+
 Stream.data = ""
 Stream.position = 1
 Stream.__name = "Stream"
@@ -103,3 +104,5 @@ function Stream:writeBytes(buffer)
 	end
 	writeChars(str)
 end
+
+return Stream
