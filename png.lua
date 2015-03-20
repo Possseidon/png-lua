@@ -20,9 +20,9 @@
 -- CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-local class = require("30log")
-local deflate = require("deflate")
-local Stream = require("stream")
+local class = require("pngLua/30log")
+local deflate = require("pngLua/deflate")
+local Stream = require("pngLua/stream")
 
 local Chunk = class()
 Chunk.__name = "Chunk"

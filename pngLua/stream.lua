@@ -1,4 +1,4 @@
-local class = require("30log")
+local class = require("pngLua/30log")
 local Stream = class()
 
 Stream.data = ""
