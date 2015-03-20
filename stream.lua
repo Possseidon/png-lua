@@ -1,5 +1,5 @@
-class = require '30log'
-Stream = class()
+local class = require("30log")
+local Stream = class()
 Stream.data = ""
 Stream.position = 1
 Stream.__name = "Stream"
