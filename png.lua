@@ -19,30 +19,66 @@
 -- IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 -- CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-local class = require("pngLua/30log")
 local deflate = require("pngLua/deflate")
-local Stream = require("pngLua/stream")
-local deepCopy = require("pngLua/deepCopy")
+
+local function bsRight(num, pow)
+    return math.floor(num / 2^pow)
+end
+
+local function bsLeft(num, pow)
+    return math.floor(num * 2^pow)
+end
+
+local function bytesToNum(bytes)
+    local n = 0
+    for k,v in ipairs(bytes) do
+        n = bsLeft(n, 8) + v
+    end
+    if (n > 2147483647) then
+        return (n - 4294967296)
+    else
+        return n
+    end
+    n = (n > 2147483647) and (n - 4294967296) or n
+    return n
+end
+
+local function readInt(stream, bps)
+    local bytes = {}
+    bps = bps or 4
+    for i=1,bps do
+        bytes[i] = stream:read(1):byte()
+    end
+    return bytesToNum(bytes)
+end
+
+local function readChar(stream, num)
+    num = num or 1
+    return stream:read(num)
+end
+
+local function readByte(stream)
+    return stream:read(1):byte()
+end
 
 local function getDataIHDR(stream, length)
     local data = {}
-    data["width"] = stream:readInt()
-    data["height"] = stream:readInt()
-    data["bitDepth"] = stream:readByte()
-    data["colorType"] = stream:readByte()
-    data["compression"] = stream:readByte()
-    data["filter"] = stream:readByte()
-    data["interlace"] = stream:readByte()
+    data["width"] = readInt(stream)
+    data["height"] = readInt(stream)
+    data["bitDepth"] = readByte(stream)
+    data["colorType"] = readByte(stream)
+    data["compression"] = readByte(stream)
+    data["filter"] = readByte(stream)
+    data["interlace"] = readByte(stream)
     return data
 end
 
 local function getDataIDAT(stream, length, oldData)
     local data = {}
     if (oldData == nil) then
-        data.data = stream:readChars(length)
+        data.data = readChar(stream, length)
     else
-        data.data = oldData.data .. stream:readChars(length)
+        data.data = oldData.data .. readChar(stream, length)
     end
     return data
 end
@@ -53,16 +89,14 @@ local function getDataPLTE(stream, length)
     data["colors"] = {}
     for i = 1, data["numColors"] do
         data.colors[i] = {
-            R = stream:readByte(),
-            G = stream:readByte(),
-            B = stream:readByte()
+            R = readByte(stream),
+            G = readByte(stream),
+            B = readByte(stream)
         }
     end
     return data
 end
 
---adds data in chunk to table of chunk types.
---IDAT data is combined into a single table entry
 local function extractChunkData(stream)
     local chunkData = {}
     local length
@@ -70,8 +104,8 @@ local function extractChunkData(stream)
     local crc
 
     while type ~= "IEND" do
-        length = stream:readInt()
-        type = stream:readChars(4)
+        length = readInt(stream)
+        type = readChar(stream, 4)
         if (type == "IHDR") then
             chunkData[type] = getDataIHDR(stream, length)
         elseif (type == "IDAT") then
@@ -79,62 +113,50 @@ local function extractChunkData(stream)
         elseif (type == "PLTE") then
             chunkData[type] = getDataPLTE(stream, length)
         else
-            stream:seek(length)
+            readChar(stream, length)
         end
-        crc = stream:readChars(4)
+        crc = readChar(stream, 4)
     end
 
     return chunkData
 end
 
-local function DEC_HEX(IN)
-    local B, K, OUT, I, D = 16, "0123456789ABCDEF", "", 0
-
-    while IN>0 do
-        I = I + 1
-        IN, D = math.floor(IN/B), (IN%B)+1
-        OUT = string.sub(K,D,D)..OUT
-    end
-    if (OUT == "") then
-        OUT = "0"
-    end
-
-    return tonumber(OUT, 16)
-end
-
 local function makePixel(stream, depth, colorType, palette)
     local bps = math.floor(depth/8) --bits per sample
     local pixelData = { R = 0, G = 0, B = 0, A = 0 }
+    local grey
+    local index
+    local color 
 
     if colorType == 0 then
-        local grey = stream:readInt(bps)
+        grey = readInt(stream, bps)
         pixelData.R = grey
         pixelData.G = grey
         pixelData.B = grey
         pixelData.A = 255
     elseif colorType == 2 then
-        pixelData.R = stream:readInt(bps)
-        pixelData.G = stream:readInt(bps)
-        pixelData.B = stream:readInt(bps)
+        pixelData.R = readInt(stream, bps)
+        pixelData.G = readInt(stream, bps)
+        pixelData.B = readInt(stream, bps)
         pixelData.A = 255
     elseif colorType == 3 then
-        local index = stream:readInt(bps)+1
-        local color = palette.colors[index]
+        index = readInt(stream, bps)+1
+        color = palette.colors[index]
         pixelData.R = color.R
         pixelData.G = color.G
         pixelData.B = color.B
         pixelData.A = 255
     elseif colorType == 4 then
-        local grey = stream:readInt(bps)
+        grey = readInt(stream, bps)
         pixelData.R = grey
         pixelData.G = grey
         pixelData.B = grey
-        pixelData.A = stream:readInt(bps)
+        pixelData.A = readInt(stream, bps)
     elseif colorType == 6 then
-        pixelData.R = stream:readInt(bps)
-        pixelData.G = stream:readInt(bps)
-        pixelData.B = stream:readInt(bps)
-        pixelData.A = stream:readInt(bps)
+        pixelData.R = readInt(stream, bps)
+        pixelData.G = readInt(stream, bps)
+        pixelData.B = readInt(stream, bps)
+        pixelData.A = readInt(stream, bps)
     end
 
     return pixelData
@@ -149,7 +171,6 @@ local function bitFromColorType(colorType)
     error 'Invalid colortype'
 end
 
---Stolen right from w3.
 local function paethPredict(a, b, c)
     local p = a + b - c
     local varA = math.abs(p - a)
@@ -167,108 +188,45 @@ end
 
 local function getPixelRow(stream, depth, colorType, palette, length)
     local pixels = {}
-    local filterType = 0
     local bpp = math.floor(depth/8) * bitFromColorType(colorType)
     local bpl = bpp*length
+    local filterType = readByte(stream)
 
-    filterType = stream:readByte()
-    stream:seek(-1)
-    stream:writeByte(0)
-    local startLoc = stream.position
     if filterType == 0 then
         for i = 1, length do
             pixels[i] = makePixel(stream, depth, colorType, palette)
         end
-    elseif filterType == 1 then
-        for i = 1, length do
-            for j = 1, bpp do
-                local curByte = stream:readByte()
-                stream:seek(-(bpp+1))
-                local lastByte = 0
-                if stream.position >= startLoc then lastByte = stream:readByte() or 0 else stream:readByte() end
-                stream:seek(bpp-1)
-                stream:writeByte((curByte + lastByte) % 256)
-            end
-            stream:seek(-bpp)
-            pixels[i] = makePixel(stream, depth, colorType, palette)
-        end
-    elseif filterType == 2 then
-        for i = 1, length do
-            for j = 1, bpp do
-                local curByte = stream:readByte()
-                stream:seek(-(bpl+2))
-                local lastByte = stream:readByte() or 0
-                stream:seek(bpl)
-                stream:writeByte((curByte + lastByte) % 256)
-            end
-            stream:seek(-bpp)
-            pixels[i] = makePixel(stream, depth, colorType, palette)
-        end
-    elseif filterType == 3 then
-        for i = 1, length do
-            for j = 1, bpp do
-                local curByte = stream:readByte()
-                stream:seek(-(bpp+1))
-                local lastByte = 0
-                if stream.position >= startLoc then lastByte = stream:readByte() or 0 else stream:readByte() end
-                stream:seek(-(bpl)+bpp-2)
-                local priByte = stream:readByte() or 0
-                stream:seek(bpl)
-                stream:writeByte((curByte + math.floor((lastByte+priByte)/2)) % 256)
-            end
-            stream:seek(-bpp)
-            pixels[i] = makePixel(stream, depth, colorType, palette)
-        end
-    elseif filterType == 4 then
-        for i = 1, length do
-            for j = 1, bpp do
-                local curByte = stream:readByte()
-                stream:seek(-(bpp+1))
-                local lastByte = 0
-                if stream.position >= startLoc then lastByte = stream:readByte() or 0 else stream:readByte() end
-                stream:seek(-(bpl + 2 - bpp))
-                local priByte = stream:readByte() or 0
-                stream:seek(-(bpp+1))
-                local lastPriByte = 0
-                if stream.position >= startLoc - (length * bpp + 1) then lastPriByte = stream:readByte() or 0 else stream:readByte() end
-                stream:seek(bpl + bpp)
-                stream:writeByte((curByte + paethPredict(lastByte, priByte, lastPriByte)) % 256)
-            end
-            stream:seek(-bpp)
-            pixels[i] = makePixel(stream, depth, colorType, palette)
-        end
+    else
+        error("Unsupported filter type: " .. tostring(filterType))
     end
+
     return pixels
 end
 
-local pngImage = class()
-
-pngImage.__name = "PNG"
-pngImage.width = 0
-pngImage.height = 0
-pngImage.depth = 0
-pngImage.colorType = 0
-pngImage.rows = {}
-
-function pngImage:__init(path, progCallback)
-    local str = Stream({inputF = path})
-    local chunks
-    local output
+local function pngImage(path, progCallback)
+    local stream = io.open(path, "rb")
+    local chunkData
     local imStr
+    local width = 0
+    local height = 0
+    local depth = 0
+    local colorType = 0
+    local output = {}
+    local pixels = {}
+    local StringStream
 
-    if str:readChars(8) ~= "\137\080\078\071\013\010\026\010" then 
+    if readChar(stream, 8) ~= "\137\080\078\071\013\010\026\010" then 
         error 'Not a PNG' 
     end
 
     print("Parsing Chunks...")
-    local chunkData = extractChunkData(str)
+    chunkData = extractChunkData(stream)
 
-    self.width = chunkData.IHDR.width
-    self.height = chunkData.IHDR.height
-    self.depth = chunkData.IHDR.bitDepth
-    self.colorType = chunkData.IHDR.colorType
+    width = chunkData.IHDR.width
+    height = chunkData.IHDR.height
+    depth = chunkData.IHDR.bitDepth
+    colorType = chunkData.IHDR.colorType
 
-    output = {}
     print("Deflating...")
     deflate.inflate_zlib {
         input = chunkData.IDAT.data, 
@@ -277,19 +235,33 @@ function pngImage:__init(path, progCallback)
         end, 
         disable_crc = true
     }
-    imStr = Stream({input = table.concat(output)})
+    StringStream = {
+        str = table.concat(output),
+        read = function(self, num)
+            local toreturn = self.str:sub(1, num)
+            self.str = self.str:sub(num + 1, self.str:len())
+            return toreturn
+        end  
+    }
 
-    for i = 1, self.height do
-        self.rows[i] = getPixelRow(imStr, self.depth, self.colorType, chunkData.PLTE, self.width)
+    print("Creating pixelmap...")
+    for i = 1, height do
+        local pixelRow = getPixelRow(StringStream, depth, colorType, chunkData.PLTE, width)
         if progCallback ~= nil then 
-            progCallback(i, self.height, self.rows[i])
+            progCallback(i, height, pixelRow)
+        else
+            pixels[i] = pixelRow
         end
     end
-end
 
-function pngImage:getPixel(x, y)
-    local pixel = self.rows[y][x]
-    return pixel
+    print("Done.")
+    return {
+        width = width,
+        height = height,
+        depth = depth,
+        colorType = colorType,
+        pixels = pixels
+    }
 end
 
 return pngImage
