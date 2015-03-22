@@ -19,7 +19,12 @@
 -- IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 -- CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-local deflate = require("pngLua/deflate")
+local deflate = require("deflatelua")
+local requiredDeflateVersion = "0.3.20111128"
+
+if (deflate._VERSION ~= requiredDeflateVersion) then
+    error("Incorrect deflate version: must be "..requiredDeflateVersion..", not "..deflate._VERSION)
+end
 
 local function bsRight(num, pow)
     return math.floor(num / 2^pow)
@@ -187,23 +192,24 @@ local function paethPredict(a, b, c)
 end
 
 local function getPixelRow(stream, depth, colorType, palette, length)
-    local pixels = {}
+    local pixelRow = {}
     local bpp = math.floor(depth/8) * bitFromColorType(colorType)
     local bpl = bpp*length
     local filterType = readByte(stream)
 
     if filterType == 0 then
-        for i = 1, length do
-            pixels[i] = makePixel(stream, depth, colorType, palette)
+        for x = 1, length do
+            pixelRow[x] = makePixel(stream, depth, colorType, palette)
         end
     else
         error("Unsupported filter type: " .. tostring(filterType))
     end
 
-    return pixels
+    return pixelRow
 end
 
-local function pngImage(path, progCallback)
+
+local function pngImage(path, progCallback, verbose)
     local stream = io.open(path, "rb")
     local chunkData
     local imStr
@@ -214,12 +220,17 @@ local function pngImage(path, progCallback)
     local output = {}
     local pixels = {}
     local StringStream
-
-    if readChar(stream, 8) ~= "\137\080\078\071\013\010\026\010" then 
-        error 'Not a PNG' 
+    local function printV(msg)
+        if (verbose) then
+            print(msg)
+        end
     end
 
-    print("Parsing Chunks...")
+    if readChar(stream, 8) ~= "\137\080\078\071\013\010\026\010" then 
+        error "Not a png"
+    end
+
+    printV("Parsing Chunks...")
     chunkData = extractChunkData(stream)
 
     width = chunkData.IHDR.width
@@ -227,7 +238,7 @@ local function pngImage(path, progCallback)
     depth = chunkData.IHDR.bitDepth
     colorType = chunkData.IHDR.colorType
 
-    print("Deflating...")
+    printV("Deflating...")
     deflate.inflate_zlib {
         input = chunkData.IDAT.data, 
         output = function(byte) 
@@ -244,7 +255,7 @@ local function pngImage(path, progCallback)
         end  
     }
 
-    print("Creating pixelmap...")
+    printV("Creating pixelmap...")
     for i = 1, height do
         local pixelRow = getPixelRow(StringStream, depth, colorType, chunkData.PLTE, width)
         if progCallback ~= nil then 
@@ -254,7 +265,7 @@ local function pngImage(path, progCallback)
         end
     end
 
-    print("Done.")
+    printV("Done.")
     return {
         width = width,
         height = height,

@@ -28,7 +28,7 @@ end
 
 local function runTests(testVal)
     print("-----"..testVal.path.."-----")
-    local img = pngImage(testVal.path, printProg)
+    local img = pngImage(testVal.path, printProg, true)
     local pixel = img.pixels[testVal.pixelCoords.x][testVal.pixelCoords.y]
 
     print("-----Test-----")
