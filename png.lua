@@ -191,6 +191,17 @@ local function paethPredict(a, b, c)
     end
 end
 
+local function filterType1(curPixel, lastPixel)
+    local lastByte
+    local newPixel = {}
+    for fieldName, curByte in pairs(curPixel) do
+        lastByte = lastPixel and lastPixel[fieldName] or 0
+        newPixel[fieldName] = (curByte + lastByte) % 256
+    end
+    return newPixel
+end
+
+local prevPixelRow = {}
 local function getPixelRow(stream, depth, colorType, palette, length)
     local pixelRow = {}
     local bpp = math.floor(depth/8) * bitFromColorType(colorType)
@@ -201,15 +212,31 @@ local function getPixelRow(stream, depth, colorType, palette, length)
         for x = 1, length do
             pixelRow[x] = makePixel(stream, depth, colorType, palette)
         end
+    elseif filterType == 1 then
+        local curPixel
+        local lastPixel
+        local newPixel
+        local lastByte
+        for x = 1, length do
+            curPixel = makePixel(stream, depth, colorType, palette)
+            lastPixel = prevPixelRow[pixelNum]
+            newPixel = {}
+            for fieldName, curByte in pairs(curPixel) do
+                lastByte = lastPixel and lastPixel[fieldName] or 0
+                newPixel[fieldName] = (curByte + lastByte) % 256
+            end
+            pixelRow[x] = newPixel
+        end
     else
         error("Unsupported filter type: " .. tostring(filterType))
     end
+    prevPixelRow = pixelRow
 
     return pixelRow
 end
 
 
-local function pngImage(path, progCallback, verbose)
+local function pngImage(path, progCallback, verbose, memSave)
     local stream = io.open(path, "rb")
     local chunkData
     local imStr
@@ -260,7 +287,8 @@ local function pngImage(path, progCallback, verbose)
         local pixelRow = getPixelRow(StringStream, depth, colorType, chunkData.PLTE, width)
         if progCallback ~= nil then 
             progCallback(i, height, pixelRow)
-        else
+        end
+        if not memSave then
             pixels[i] = pixelRow
         end
     end

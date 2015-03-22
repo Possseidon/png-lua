@@ -7,20 +7,20 @@ local testVals = {
         width = 50,
         height = 54,
         depth = 8
+    },
+    example2 = {
+        path = "test/Example2.png",
+        pixelCoords = { x = 10, y = 10},
+        pixelColor = "R: 123, G: 132, B: 129, A: 255",
+        width = 300,
+        height = 300,
+        depth = 8
     }
-    -- example2 = {
-    --     path = "test/Example2.png",
-    --     pixelCoords = { x = 10, y = 10},
-    --     pixelColor = "R: 123, G: 132, B: 129, A: 255",
-    --     width = 300,
-    --     height = 300,
-    --     depth = 8
-    -- }
 }
 
--- function printProg(line, totalLine)
--- 	-- print(line .. " of " .. totalLine)
--- end
+function printProg(line, totalLine)
+	print(line .. " of " .. totalLine)
+end
 
 local function getPixelStr(pixel)
     return string.format("R: %d, G: %d, B: %d, A: %d", pixel.R, pixel.G, pixel.B, pixel.A)

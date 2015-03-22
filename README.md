@@ -8,9 +8,9 @@ Usage
 
 To initialize a new png image:
 
-    img = pngImage(<path to image>, newRowCallback, verbose)
+    img = pngImage(<path to image>, newRowCallback, verbose, memSave)
     
-Verbose is a boolean. If true, it will print messages while decoding. When the function is called, the image will be decoded. The available data from the image is as follows:
+The argument "verbose" should be a boolean. If true, it will print messages while decoding. The argument "memSave" should also be a boolean. If true, it will not save pixel data after it has been decoded (you must use the pixel data passed to the newRowCallback to deal with image data).The available data from the image is as follows:
 
 ```
 img.width = 0
@@ -33,11 +33,9 @@ img.pixels = {
 
 ```
 
-If a new row callback is used, there will be no pixels stored in img.pixels. The new row callback is intended for fast, low memory rendering.
+The newRowCallback argument should have the following structure:
 
-The format of the new callback is:
-
-    calback(rowNum, rowTotal, rowPixels)
+    newRowCallback(rowNum, rowTotal, rowPixels)
 
 "rowNum" refers to the current row, "rowTotal" refers to the total number of rows in the image, and "rowPixels" refers to the table of pixels in the current row.
 
