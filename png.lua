@@ -131,7 +131,7 @@ local function makePixel(stream, depth, colorType, palette)
     local pixelData = { R = 0, G = 0, B = 0, A = 0 }
     local grey
     local index
-    local color 
+    local color
 
     if colorType == 0 then
         grey = readInt(stream, bps)
@@ -182,10 +182,10 @@ local function paethPredict(a, b, c)
     local varB = math.abs(p - b)
     local varC = math.abs(p - c)
 
-    if varA <= varB and varA <= varC then 
-        return a 
-    elseif varB <= varC then 
-        return b 
+    if varA <= varB and varA <= varC then
+        return a
+    elseif varB <= varC then
+        return b
     else
         return c
     end
@@ -219,7 +219,7 @@ local function getPixelRow(stream, depth, colorType, palette, length)
         local lastByte
         for x = 1, length do
             curPixel = makePixel(stream, depth, colorType, palette)
-            lastPixel = prevPixelRow[pixelNum]
+            lastPixel = prevPixelRow[length]
             newPixel = {}
             for fieldName, curByte in pairs(curPixel) do
                 lastByte = lastPixel and lastPixel[fieldName] or 0
@@ -253,7 +253,7 @@ local function pngImage(path, progCallback, verbose, memSave)
         end
     end
 
-    if readChar(stream, 8) ~= "\137\080\078\071\013\010\026\010" then 
+    if readChar(stream, 8) ~= "\137\080\078\071\013\010\026\010" then
         error "Not a png"
     end
 
@@ -267,10 +267,10 @@ local function pngImage(path, progCallback, verbose, memSave)
 
     printV("Deflating...")
     deflate.inflate_zlib {
-        input = chunkData.IDAT.data, 
-        output = function(byte) 
-            output[#output+1] = string.char(byte) 
-        end, 
+        input = chunkData.IDAT.data,
+        output = function(byte)
+            output[#output+1] = string.char(byte)
+        end,
         disable_crc = true
     }
     StringStream = {
@@ -279,13 +279,13 @@ local function pngImage(path, progCallback, verbose, memSave)
             local toreturn = self.str:sub(1, num)
             self.str = self.str:sub(num + 1, self.str:len())
             return toreturn
-        end  
+        end
     }
 
     printV("Creating pixelmap...")
     for i = 1, height do
         local pixelRow = getPixelRow(StringStream, depth, colorType, chunkData.PLTE, width)
-        if progCallback ~= nil then 
+        if progCallback ~= nil then
             progCallback(i, height, pixelRow)
         end
         if not memSave then
