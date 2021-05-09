@@ -18,8 +18,8 @@ local testVals = {
     }
 }
 
-function printProg(line, totalLine)
-	print(line .. " of " .. totalLine)
+local function printProg(line, totalLine)
+    print(line .. " of " .. totalLine)
 end
 
 local function getPixelStr(pixel)
